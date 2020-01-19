@@ -582,7 +582,10 @@ chd_error cdlz_codec_init(void* codec, uint32_t hunkbytes)
 
 void cdlz_codec_free(void* codec)
 {
-	/* TODO */
+  cdlz_codec_data* cdlz = (cdlz_codec_data*)codec;  
+  lzma_codec_free(&cdlz->base_decompressor);
+  zlib_codec_free(&cdlz->subcode_decompressor);
+  free(cdlz->buffer);
 }
 
 chd_error cdlz_codec_decompress(void *codec, const uint8_t *src, uint32_t complen, uint8_t *dest, uint32_t destlen)
@@ -641,7 +644,11 @@ chd_error cdzl_codec_init(void *codec, uint32_t hunkbytes)
 
 void cdzl_codec_free(void *codec)
 {
-	/* TODO */
+  cdzl_codec_data* cdlz = (cdzl_codec_data*)codec;
+  zlib_codec_free(&cdlz->base_decompressor);
+  zlib_codec_free(&cdlz->subcode_decompressor);
+  free(cdlz->buffer);
+
 }
 
 chd_error cdzl_codec_decompress(void *codec, const uint8_t *src, uint32_t complen, uint8_t *dest, uint32_t destlen)
@@ -742,6 +749,7 @@ void cdfl_codec_free(void *codec)
 {
 	cdfl_codec_data *cdfl = (cdfl_codec_data*)codec;
 	inflateEnd(&cdfl->inflater);
+  free(cdfl->buffer);
 }
 
 chd_error cdfl_codec_decompress(void *codec, const uint8_t *src, uint32_t complen, uint8_t *dest, uint32_t destlen)
