@@ -409,6 +409,9 @@ void lzma_allocator_free(void* p )
 
 void *lzma_fast_alloc(void *p, size_t size)
 {
+#if 1
+	return malloc(size);
+#else
 	lzma_allocator *codec = (lzma_allocator *)(p);
 
 	/* compute the size, rounding to the nearest 1k */
@@ -442,6 +445,7 @@ void *lzma_fast_alloc(void *p, size_t size)
 	/* set the low bit of the size so we don't match next time */
 	*addr = size | 1;
 	return addr + 1;
+#endif	
 }
 
 /*-------------------------------------------------
@@ -452,6 +456,11 @@ void *lzma_fast_alloc(void *p, size_t size)
 
 void lzma_fast_free(void *p, void *address)
 {
+#if 1
+	if (address == NULL)
+		return;
+	free(address);
+#else
 	if (address == NULL)
 		return;
 
@@ -468,6 +477,7 @@ void lzma_fast_free(void *p, void *address)
 			return;
 		}
 	}
+#endif	
 }
 
 /***************************************************************************
@@ -748,8 +758,10 @@ chd_error cdfl_codec_init(void *codec, uint32_t hunkbytes)
 void cdfl_codec_free(void *codec)
 {
 	cdfl_codec_data *cdfl = (cdfl_codec_data*)codec;
+
+	flac_decoder_free(&cdfl->decoder);
 	inflateEnd(&cdfl->inflater);
-  free(cdfl->buffer);
+    free(cdfl->buffer);
 }
 
 chd_error cdfl_codec_decompress(void *codec, const uint8_t *src, uint32_t complen, uint8_t *dest, uint32_t destlen)
@@ -1218,6 +1230,12 @@ static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 		/* crc16 */
 		put_bigendian_uint16(&rawmap[10], crc);
 	}
+
+	free(compressed);
+	free(bitbuf);
+	free(decoder->lookup);
+	free(decoder->huffnode);
+	free(decoder);
 
 	/* verify the final CRC */
 	if (crc16(&header->rawmap[0], header->hunkcount * 12) != mapcrc)
@@ -2389,6 +2407,9 @@ static chd_error zlib_codec_decompress(void *codec, const uint8_t *src, uint32_t
 
 static voidpf zlib_fast_alloc(voidpf opaque, uInt items, uInt size)
 {
+#if 1
+	return malloc( size * items );
+#else
 	zlib_allocator *alloc = (zlib_allocator *)opaque;
 	UINT32 *ptr;
 	int i;
@@ -2424,6 +2445,7 @@ static voidpf zlib_fast_alloc(voidpf opaque, uInt items, uInt size)
 	/* set the low bit of the size so we don't match next time */
 	*ptr = size | 1;
 	return ptr + 1;
+#endif	
 }
 
 /*-------------------------------------------------
@@ -2433,6 +2455,10 @@ static voidpf zlib_fast_alloc(voidpf opaque, uInt items, uInt size)
 
 static void zlib_fast_free(voidpf opaque, voidpf address)
 {
+#if 1
+	if( address)
+		free(address);
+#else
 	zlib_allocator *alloc = (zlib_allocator *)opaque;
 	UINT32 *ptr = (UINT32 *)address - 1;
 	int i;
@@ -2445,4 +2471,5 @@ static void zlib_fast_free(voidpf opaque, voidpf address)
 			*ptr &= ~1;
 			return;
 		}
+#endif	
 }
