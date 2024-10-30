@@ -1999,6 +1999,55 @@ CHD_EXPORT chd_error chd_precache(chd_file *chd)
 	return CHDERR_NONE;
 }
 
+#if defined(ANDROID)
+// Android 11 does not allow access file directory
+#include <unistd.h> // for dup()
+inline FILE* idiocy_fopen_fd(const char* fname, const char * mode) {
+  if (strstr(fname, "/proc/self/fd/") == fname) {
+    int fd = atoi(fname + 14);
+    if (fd != 0) {
+      // Why dup(fd) below: if we called fdopen() on the
+      // original fd value, and the native code closes
+      // and tries re-open that file, the second fdopen(fd)
+      // would fail, return NULL - after closing the
+      // original fd received from Android, it's no longer valid.
+      FILE *fp = fdopen(dup(fd), mode);
+      // Why rewind(fp): if the native code closes and 
+      // opens again the file, the file read/write position
+      // would not change, because with dup(fd) it's still
+      // the same file...
+      rewind(fp);
+      return fp;
+    }
+  }
+  return fopen(fname, mode);
+}
+
+/*-------------------------------------------------
+	core_stdio_fopen - core_file wrapper over fopen
+-------------------------------------------------*/
+static * core_android_file(char const *path);
+
+static * core_android_file(char const *path) {
+	core_file *file = malloc(sizeof(core_file));
+	if (!file)
+		return NULL;
+	if (!(file->argp = idiocy_fopen_fd(path, "rb"))) {
+		free(file);
+		return NULL;
+	}
+	file->fsize = core_stdio_fsize;
+	file->fread = core_stdio_fread;
+	file->fclose = core_stdio_fclose;
+	file->fseek = core_stdio_fseek;
+	return file;
+}
+
+
+#endif
+
+
+
 /*-------------------------------------------------
     chd_open - open a CHD file by
     filename
@@ -2026,8 +2075,11 @@ CHD_EXPORT chd_error chd_open(const char *filename, int mode, chd_file *parent, 
 			goto cleanup;
 	}
 
-	/* open the file */
+#if defined(ANDROID)
+	file = core_android_file(filename);
+#else	
 	file = core_stdio_fopen(filename);
+#endif	
 	if (file == 0)
 	{
 		err = CHDERR_FILE_NOT_FOUND;
