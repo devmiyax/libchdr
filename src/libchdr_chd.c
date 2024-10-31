@@ -2002,7 +2002,7 @@ CHD_EXPORT chd_error chd_precache(chd_file *chd)
 #if defined(ANDROID)
 // Android 11 does not allow access file directory
 #include <unistd.h> // for dup()
-inline FILE* idiocy_fopen_fd(const char* fname, const char * mode) {
+FILE* idiocy_fopen_fd(const char* fname, const char * mode) {
   if (strstr(fname, "/proc/self/fd/") == fname) {
     int fd = atoi(fname + 14);
     if (fd != 0) {
@@ -2026,9 +2026,9 @@ inline FILE* idiocy_fopen_fd(const char* fname, const char * mode) {
 /*-------------------------------------------------
 	core_stdio_fopen - core_file wrapper over fopen
 -------------------------------------------------*/
-static * core_android_file(char const *path);
+static core_file * core_android_file(char const *path);
 
-static * core_android_file(char const *path) {
+static core_file * core_android_file(char const *path) {
 	core_file *file = malloc(sizeof(core_file));
 	if (!file)
 		return NULL;
